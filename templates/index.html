@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Добро пожаловать!</h1>
+{% if current_user.is_authenticated %}
+    <p>Вы вошли как {{ current_user.username }} ({{ current_user.role }})</p>
+{% else %}
+    <p>Пожалуйста, войдите или зарегистрируйтесь.</p>
+{% endif %}
+{% endblock %}
