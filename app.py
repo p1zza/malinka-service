@@ -3,11 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import hashlib
 import secrets
+from pn532_handler import NFCReader
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+nfc_reader = NFCReader(debug=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -99,6 +101,11 @@ def logout():
     logout_user()
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('index'))
+
+@app.route('/nfc/read')
+def read_nfc():
+    uid = nfc_reader.read_uid()
+    return jsonify({'uid': str(uid)})
 
 if __name__ == '__main__':
     with app.app_context():
