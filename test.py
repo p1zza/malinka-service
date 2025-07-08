@@ -1,5 +1,19 @@
 #sudo apt-get install python3-pip
 #sudo pip3 install adafruit-circuitpython-pn532
+'''
+sudo apt-get update
+sudo apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
+
+cd /tmp
+wget https://www.python.org/ftp/python/3.9.16/Python-3.9.16.tgz
+tar -xf Python-3.9.16.tgz
+cd Python-3.9.16
+./configure --enable-optimizations
+make -j$(nproc)
+sudo make altinstall
+
+'''
+#
 
 
 import board
