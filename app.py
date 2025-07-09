@@ -1,15 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import jsonify
 import hashlib
 import secrets
-from pn532_handler import NFCReader
+#from pn532_handler import NFCReader
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-nfc_reader = NFCReader(debug=True)
+#nfc_reader = NFCReader(debug=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -79,6 +80,22 @@ def register():
 def dashboard():
     return render_template('dashboard.html', user=current_user)
 
+@app.route('/api/v1/secret/flags', methods=['POST'])
+def handle_secret_flags():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.get_json()
+    
+    if 'token' not in data:
+        return jsonify({"error": "Missing 'token' field"}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "Flag accepted",
+        "received_token": data['token']
+    }), 200
+
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -102,18 +119,12 @@ def logout():
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('index'))
 
-@app.route('/nfc/read')
-def read_nfc():
-    uid = nfc_reader.read_uid()
-    return jsonify({'uid': str(uid)})
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Создаем тестового админа (если его нет)
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='admin')
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
-    app.run(debug=True, port = 1000, host='0.0.0.0')
+    app.run(debug=True, port = 8080, host='0.0.0.0')
