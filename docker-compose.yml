@@ -5,13 +5,9 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "1000:1000"  
+      - "8080:8080"  
     volumes:
-      - /dev/i2c-1:/dev/i2c-1  
-      - ./app:/app/app  
-      - ./pn532_handler.py:/app/pn532_handler.py  
+      - ./app:/app/app 
     environment:
-      - FLASK_APP=app/app.py  
+      - FLASK_APP=app 
       - FLASK_ENV=development
-    privileged: true
-    command: flask run --host=0.0.0.0

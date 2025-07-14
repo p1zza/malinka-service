@@ -9,36 +9,27 @@
         <a href="{{ url_for('change_password') }}" class="btn btn-warning">Сменить пароль</a>
     </div>
 
-    <h3 class="mb-3">Флаги пользователей</h3>
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="thead-dark">
-                <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Флаг</th>
-                    <th scope="col">Владелец</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th scope="row">1</th>
-                    <td>CTF{example_flag_1}</td>
-                    <td>admin</td>
-                </tr>
-                <tr>
-                    <th scope="row">2</th>
-                    <td>CTF{another_test_flag}</td>
-                    <td>user1</td>
-                </tr>
-                <tr>
-                    <th scope="row">3</th>
-                    <td>CTF{yet_another_flag}</td>
-                    <td>{{ user.username }}</td>
-                </tr>
-                <!-- Добавьте больше строк по мере необходимости -->
-            </tbody>
-        </table>
-    </div>
+    {% if flags %}
+        <h3 class="mb-3">Ваши флаги</h3>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Флаг</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flag in flags %}
+                        <tr>
+                            <th scope="row">{{ loop.index }}</th>
+                            <td>{{ flag.token }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
 </div>
 
 <style>

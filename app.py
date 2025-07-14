@@ -4,23 +4,28 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask import jsonify
 import hashlib
 import secrets
-#from pn532_handler import NFCReader
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-#nfc_reader = NFCReader(debug=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+class Flag(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(200), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('owned_flags', lazy=True))
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default='user')
+    flags = db.relationship('Flag', backref='owner', lazy=True)
 
     def set_password(self, password):
         salt = secrets.token_hex(16)
@@ -33,6 +38,7 @@ class User(UserMixin, db.Model):
         salt, stored_hash = self.password_hash.split('$')
         pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
         return pwd_hash.hex() == stored_hash
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -78,7 +84,8 @@ def register():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', user=current_user)
+    flags = current_user.flags
+    return render_template('dashboard.html', user=current_user, flags=flags)
 
 @app.route('/api/v1/secret/flags', methods=['POST'])
 def handle_secret_flags():
@@ -86,14 +93,28 @@ def handle_secret_flags():
         return jsonify({"error": "Request must be JSON"}), 400
     
     data = request.get_json()
+    required_fields = ['token', 'user', 'password']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing '{field}' field"}), 400
+
+    with app.app_context():
+        user = User.query.filter_by(username=data['user']).first()
+        if not user:
+            user = User(username=data['user'], role='user')
+            user.set_password(data['password'])
+            db.session.add(user)
+            db.session.commit()
     
-    if 'token' not in data:
-        return jsonify({"error": "Missing 'token' field"}), 400
+    new_flag = Flag(token=data['token'], user=user)
+    db.session.add(new_flag)
+    db.session.commit()
     
     return jsonify({
         "status": "success",
-        "message": "Flag accepted",
-        "received_token": data['token']
+        "message": "Flag added successfully",
+        "received_token": data['token'],
+        "user": data['user']
     }), 200
 
 @app.route('/change_password', methods=['GET', 'POST'])
@@ -123,8 +144,15 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', role='admin')
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
-    app.run(debug=True, port = 8080, host='0.0.0.0')
+            try:
+                admin = User(username='admin', role='admin')
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                
+                print("Пользователь 'admin' успешно создан.")
+            
+            except Exception as e:
+                print(f"Произошла ошибка при создании пользователя: {e}")
+
+    app.run(debug=True, port=8080, host='0.0.0.0')
