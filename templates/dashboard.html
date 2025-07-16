@@ -9,6 +9,17 @@
         <a href="{{ url_for('change_password') }}" class="btn btn-warning">Сменить пароль</a>
     </div>
 
+    <!-- Добавленная форма для ввода нового флага -->
+    <div class="add-flag-form mb-4">
+        <h3>Добавить новый флаг</h3>
+        <form method="POST" action="{{ url_for('add_flag') }}">
+            <div class="form-group">
+                <input type="text" class="form-control" name="token" placeholder="Введите флаг" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить флаг</button>
+        </form>
+    </div>
+
     {% if flags %}
         <h3 class="mb-3">Ваши флаги</h3>
         <div class="table-responsive">
@@ -44,6 +55,12 @@
     }
     .table th, .table td {
         vertical-align: middle;
+    }
+    .add-flag-form {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
     }
 </style>
 {% endblock %}

