@@ -2,47 +2,47 @@
 
 {% block content %}
 <div class="container">
-    <h2>Личный кабинет</h2>
+    <h2>Account</h2>
     <div class="user-info mb-4">
-        <p><strong>Логин:</strong> {{ user.username }}</p>
-        <p><strong>Роль:</strong> {{ user.role }}</p>
+        <p><strong>Login:</strong> {{ user.username }}</p>
+        <p><strong>Role:</strong> {{ user.role }}</p>
         <p><strong>Id:</strong> {{ user.id }}</p>
-        <a href="{{ url_for('change_password') }}" class="btn btn-warning">Сменить пароль</a>
+        <a href="{{ url_for('change_password') }}" class="btn btn-warning">Change password</a>
     </div>
 
     <div class="change-id-form mb-4">
-        <h3>Изменить ID пользователя</h3>
+        <h3>Change user ID</h3>
         <form method="POST" action="{{ url_for('change_id') }}">
             <div class="form-group">
-                <label for="new_id"><strong>Новый ID:</strong></label>
+                <label for="new_id"><strong>New ID:</strong></label>
                 <input type="number" class="form-control" id="new_id" name="new_id" 
-                       placeholder="Введите новый ID" min="1" required>
+                       placeholder="Pun new ID here" min="1" required>
                 <small class="form-text text-muted">
-                    Введите положительное целое число.
+                    Enter a positive number less than 100.
                 </small>
             </div>
-            <button type="submit" class="btn btn-info">Изменить ID</button>
+            <button type="submit" class="btn btn-info">Change ID</button>
         </form>
     </div>
 
     <div class="add-flag-form mb-4">
-        <h3>Добавить новый пропуск</h3>
+        <h3>Add a new pass</h3>
         <form method="POST" action="{{ url_for('add_flag') }}">
             <div class="form-group">
-                <input type="text" class="form-control" name="token" placeholder="Введите пропуск" required>
+                <input type="text" class="form-control" name="token" placeholder="Put a new pass here" required>
             </div>
-            <button type="submit" class="btn btn-primary">Добавить пропуск</button>
+            <button type="submit" class="btn btn-primary">Add pass</button>
         </form>
     </div>
 
     {% if flags %}
-        <h3 class="mb-3">Ваши пропуски</h3>
+        <h3 class="mb-3">Your passes</h3>
         <div class="table-responsive">
             <table class="table table-striped table-bordered">
                 <thead class="thead-dark">
                     <tr>
                         <th scope="col">#</th>
-                        <th scope="col">Пропуск</th>
+                        <th scope="col">Pass</th>
                     </tr>
                 </thead>
                 <tbody>

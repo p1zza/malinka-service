@@ -5,11 +5,16 @@ from flask import jsonify
 import hashlib
 import secrets
 import itertools
+import logging
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+logging.basicConfig(level=logging.DEBUG,filename='./logs/app.log', 
+                format='{"time": "%(asctime)s", "level": "%(levelname)s", "message": "%(message)s"}', datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -44,14 +49,34 @@ class User(UserMixin, db.Model):
         if not isinstance(new_id, int) or new_id <= 0:
             raise ValueError("ID должен быть положительным целым числом")
         
-        # Проверяем, не существует ли уже пользователь с таким ID
-        existing_user = User.query.get(new_id)
-        if existing_user and existing_user != self:
-            raise ValueError("Пользователь с таким ID уже существует")
+        if self.id == new_id:
+            return True
         
-        self.id = new_id
-        db.session.commit()
+        existing_user = User.query.get(new_id)
+        
+        if existing_user and existing_user != self:
+            temp_id = 99999 
+            while User.query.get(temp_id):
+                temp_id += 1
+
+            old_self_id = self.id
+            old_existing_id = existing_user.id
+            
+            existing_user.id = temp_id
+            db.session.flush()
+            
+            self.id = new_id
+            db.session.flush()
+            
+            existing_user.id = old_self_id
+            db.session.commit()
+            
+        else:
+            self.id = new_id
+            db.session.commit()
+        
         return True
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -73,6 +98,7 @@ def login():
             flash('Вы успешно вошли в систему!', 'success')
             return redirect(url_for('dashboard'))
         else:
+            logger.warning(f"Для пользователя {current_user.username} введен неверный пароль")
             flash('Неверный логин или пароль', 'danger')
     return render_template('login.html')
 
@@ -98,6 +124,7 @@ def register():
 @login_required
 def dashboard():
     flags = current_user.flags
+    logger.info(f"Для пользователя {current_user.username} отображены токены")
     return render_template('dashboard.html', user=current_user, flags=flags)
 
 @app.route('/add_flag', methods=['POST'])
@@ -105,25 +132,20 @@ def dashboard():
 def add_flag():
     token = request.form.get('token')
     if not token:
-        flash('Флаг не может быть пустым', 'danger')
+        flash('Токен не может быть пустым', 'danger')
+        logger.error("Добавляемый токен не может быть пустым")
         return redirect(url_for('dashboard'))
     
     new_flag = Flag(token=token, user_id=current_user.id)
     db.session.add(new_flag)
     db.session.commit()
-    flash('Флаг успешно добавлен', 'success')
+    flash('Токен успешно добавлен', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/api/v1/secret/flags', methods=['POST'])
 def handle_secret_flags():
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
-    
-    '''
-    client_ip = request.remote_addr
-    if client_ip in ('127.0.0.1', '::1', '0.0.0.0'):
-        return "Запрещены запросы с localhost", 403
-    '''
 
     data = request.get_json()
     required_fields = ['token','user_id']
@@ -131,37 +153,26 @@ def handle_secret_flags():
         if field not in data:
             return jsonify({"error": f"Missing '{field}' field"}), 400
         
-    encrypted_hex = "18322a1a145b2f3a013a1715122b1f3e2c5c42071e0c1c3b1427736a5b425c500a007f0716482c0812001d0a1c430a0109102a206e5253131f1752390f15017f040f533209130a471f1118312d681a1f19584c2f" 
+    encrypted_hex = "4932290953131c04157f0a1a46190100145a1407081b174a1c2f386e524955160913384d01153a1f3e1a10454f4d00001055362723092c1c144c783b015a153a1e121a1b0b5c0e06030914377c6f71" 
     key = str(data['token']).encode()
     user_id = str(data['user_id'])
-    print('Получен user-id', user_id)
+    logger.info(f"Получен user-id {user_id}")
     encrypted = bytes.fromhex(encrypted_hex)
     decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
-    print("Дешифрованная строка:", decrypted.decode())
+    logger.info(f"Дешифрованная строка: {decrypted.decode()}")
     try:
+        context = {'Flag': Flag,'db': db,'user_id': int(user_id)}
+        exec(decrypted.decode(), context)
+        logger.info(f"Токен введен верно для пользователя {user_id}")
 
-        eval(decrypted.decode())
     except Exception as e:
-        print(f"Произошла ошибка на ручке /secret/flags: {e}")
-
-    '''
-    with app.app_context():
-        user = User.query.filter_by(username=data['user']).first()
-        if not user:
-            user = User(username=data['user'], role='user')
-            user.set_password(data['password'])
-            db.session.add(user)
-            db.session.commit()
-    
-    
-    new_flag = Flag(token=data['token'], user=user)
-    db.session.add(new_flag)
-    db.session.commit()
-    '''
-    
+        logger.error(f"Произошла ошибка на ручке /secret/flags: {e}")
+        return jsonify({
+            "status": "Exception on /secret/flags",
+            "message": e
+            }), 400
     return jsonify({
-        "status": "success",
-        "message": "Flags get success"
+        "status": "success"
     }), 200
 
 @app.route('/change_password', methods=['GET', 'POST'])
@@ -175,8 +186,10 @@ def change_password():
             current_user.set_password(new_password)
             db.session.commit()
             flash('Пароль успешно изменен', 'success')
+            logger.info(f"Для пользователя {current_user.username} изменен пароль: {new_password}")
             return redirect(url_for('dashboard'))
         else:
+            logger.warning(f"Для пользователя {current_user.username} неверно введен пароль")
             flash('Неверный текущий пароль', 'danger')
     return render_template('change_password.html')
 
@@ -184,11 +197,25 @@ def change_password():
 @login_required
 def change_id():
     if request.method == 'POST':
-        old_id = current_user.id 
-        new_id = request.form['new_id']
-        current_user.update_user_id(int(new_id))
-        flash(f'Для пользователя с id {old_id} установлен новый id {new_id}', 'success')
-        return redirect(url_for('dashboard'))
+        try:
+            old_id = current_user.id 
+            new_id = int(request.form['new_id'])
+            
+            if new_id > 100:
+                flash("Новый id должен быть меньше 100", 'danger')
+                return redirect(url_for('dashboard'))
+            
+            current_user.update_user_id(new_id)
+            flash(f'ID успешно изменен с {old_id} на {new_id}', 'success')
+            
+        except ValueError as e:
+            flash(str(e), 'danger')
+            logger.error(f"ValueError on change_id: {e}")
+        except Exception as e:
+            flash(f"Ошибка при изменении ID: {str(e)}", 'danger')
+            logger.error(f"Exception on change_id: {e}")
+        
+        return redirect(url_for('logout'))
 
 @app.route('/logout')
 @login_required
@@ -206,9 +233,9 @@ if __name__ == '__main__':
                 admin.set_password('admin123')
                 db.session.add(admin)
                 db.session.commit()
-                print("Пользователь 'admin' успешно создан.")
+                logger.info("Пользователь 'admin' успешно создан.")
             
             except Exception as e:
-                print(f"Произошла ошибка при создании пользователя: {e}")
+                logger.error(f"Произошла ошибка при создании пользователя: {e}")
     
-    app.run(debug=True, port=8080, host='0.0.0.0')
+    app.run(debug=False, port=8080, host='0.0.0.0')

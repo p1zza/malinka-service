@@ -3,3 +3,4 @@
 .DS_Store
 code_gen.py
 *.db
+/logs
