@@ -39,7 +39,19 @@ class User(UserMixin, db.Model):
         salt, stored_hash = self.password_hash.split('$')
         pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
         return pwd_hash.hex() == stored_hash
-
+    
+    def update_user_id(self, new_id):
+        if not isinstance(new_id, int) or new_id <= 0:
+            raise ValueError("ID должен быть положительным целым числом")
+        
+        # Проверяем, не существует ли уже пользователь с таким ID
+        existing_user = User.query.get(new_id)
+        if existing_user and existing_user != self:
+            raise ValueError("Пользователь с таким ID уже существует")
+        
+        self.id = new_id
+        db.session.commit()
+        return True
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -114,17 +126,20 @@ def handle_secret_flags():
     '''
 
     data = request.get_json()
-    required_fields = ['token']
+    required_fields = ['token','user_id']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing '{field}' field"}), 400
         
     encrypted_hex = "18322a1a145b2f3a013a1715122b1f3e2c5c42071e0c1c3b1427736a5b425c500a007f0716482c0812001d0a1c430a0109102a206e5253131f1752390f15017f040f533209130a471f1118312d681a1f19584c2f" 
     key = str(data['token']).encode()
+    user_id = str(data['user_id'])
+    print('Получен user-id', user_id)
     encrypted = bytes.fromhex(encrypted_hex)
     decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
     print("Дешифрованная строка:", decrypted.decode())
     try:
+
         eval(decrypted.decode())
     except Exception as e:
         print(f"Произошла ошибка на ручке /secret/flags: {e}")
@@ -164,6 +179,16 @@ def change_password():
         else:
             flash('Неверный текущий пароль', 'danger')
     return render_template('change_password.html')
+
+@app.route('/change_id', methods = ['POST'])
+@login_required
+def change_id():
+    if request.method == 'POST':
+        old_id = current_user.id 
+        new_id = request.form['new_id']
+        current_user.update_user_id(int(new_id))
+        flash(f'Для пользователя с id {old_id} установлен новый id {new_id}', 'success')
+        return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 @login_required

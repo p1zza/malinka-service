@@ -2,3 +2,4 @@
 /instnace/*.db
 .DS_Store
 code_gen.py
+*.db
