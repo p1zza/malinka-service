@@ -1,19 +1,37 @@
-ARG PYTHON_VERSION=3.9.6
-FROM python:${PYTHON_VERSION}-slim as base
+FROM python:3.9-bookworm
 
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc g++ python3-dev && \
-    rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gcc \
+        g++ \
+        python3-dev && \
+    apt-key adv --refresh-keys --keyserver keyserver.ubuntu.com || true && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY requirements.txt .
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install greenlet --no-binary :all:
-RUN python3 -m pip install wheel --no-binary :all:
-RUN python3 -m pip install -r requirements.txt
-COPY . .
+
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install \
+    greenlet \
+    wheel \
+    -r requirements.txt \
+    --no-binary :all:
+
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app
+
+USER app
+
+COPY --chown=app:app . .
 
 EXPOSE 8080
 
-CMD python app.py
+CMD ["python", "app.py"]
