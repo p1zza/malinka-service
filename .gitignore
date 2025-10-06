@@ -1,8 +1,7 @@
 /venv
-/instnace/*.db
 .DS_Store
 code_gen.py
 *.db
 /logs
 /app
-/malinka_service/
+/data

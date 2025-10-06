@@ -7,8 +7,8 @@ services:
     ports:
       - "8080:8080"  
     volumes:
-      - ./logs/app.log:/app/logs/app.log
-      - ./users.db:/app/users.db
+       - ./logs:/app/logs
+       - ./data:/app/data
 
     environment:
       - FLASK_APP=app 
