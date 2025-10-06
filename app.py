@@ -148,29 +148,35 @@ def handle_secret_flags():
         return jsonify({"error": "Request must be JSON"}), 400
 
     data = request.get_json()
+    logger.info(f"Data in post-request: {data}")
+
     required_fields = ['token','user']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing '{field}' field"}), 400
         
-    encrypted_hex = "4932290953131c04157f0a1a46190100145a1407081b174a1c2f386e524955160913384d01153a1f3e1a10454f4d00001055362723092c1c144c783b015a153a1e121a1b0b5c0e06030914377c6f71" 
+    encrypted_hex = "4932290953131c04157f0a1a46190100145a1407081b174a1c2f386e524955160913384d01153a1f3e1a10454f4d1c1d010f1c3d227117175e16172c101d093143021c19081b1941476e" 
     key = str(data['token']).encode()
-    user_id = str(data['user'])
+    user_id = int(data['user'])
     logger.info(f"Получен user {user_id}")
-    encrypted = bytes.fromhex(encrypted_hex)
-    decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
-    logger.info(f"Дешифрованная строка: {decrypted.decode()}")
     try:
-        context = {'Flag': Flag,'db': db,'user': int(user_id)}
-        exec(decrypted.decode(), context)
-        logger.info(f"Токен введен верно для пользователя {user_id}")
+        encrypted = bytes.fromhex(encrypted_hex)
+        decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
+        logger.info(f"Дешифрованная строка: {decrypted.decode()}")
+    except Exception as e:
+        logger.error(f"Ошибка дешифровки {e.args}")
 
+    try:
+        context = {'Flag': Flag, 'db': db, 'user_id': user_id}
+        exec(decrypted.decode(), context)
     except Exception as e:
         logger.error(f"Произошла ошибка на ручке /secret/flags: {e}")
         return jsonify({
             "status": "Exception on /secret/flags",
-            "message": e
+            "message": e.args
             }), 400
+    
+    logger.info(f"Токен введен верно для пользователя {user_id}")
     return jsonify({
         "status": "success"
     }), 200
