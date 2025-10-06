@@ -148,20 +148,20 @@ def handle_secret_flags():
         return jsonify({"error": "Request must be JSON"}), 400
 
     data = request.get_json()
-    required_fields = ['token','user_id']
+    required_fields = ['token','user']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing '{field}' field"}), 400
         
     encrypted_hex = "4932290953131c04157f0a1a46190100145a1407081b174a1c2f386e524955160913384d01153a1f3e1a10454f4d00001055362723092c1c144c783b015a153a1e121a1b0b5c0e06030914377c6f71" 
     key = str(data['token']).encode()
-    user_id = str(data['user_id'])
-    logger.info(f"Получен user-id {user_id}")
+    user_id = str(data['user'])
+    logger.info(f"Получен user {user_id}")
     encrypted = bytes.fromhex(encrypted_hex)
     decrypted = bytes(e ^ k for e, k in zip(encrypted, itertools.cycle(key)))
     logger.info(f"Дешифрованная строка: {decrypted.decode()}")
     try:
-        context = {'Flag': Flag,'db': db,'user_id': int(user_id)}
+        context = {'Flag': Flag,'db': db,'user': int(user_id)}
         exec(decrypted.decode(), context)
         logger.info(f"Токен введен верно для пользователя {user_id}")
 
