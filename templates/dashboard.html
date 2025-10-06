@@ -10,21 +10,6 @@
         <a href="{{ url_for('change_password') }}" class="btn btn-warning">Change password</a>
     </div>
 
-    <div class="change-id-form mb-4">
-        <h3>Change user ID</h3>
-        <form method="POST" action="{{ url_for('change_id') }}">
-            <div class="form-group">
-                <label for="new_id"><strong>New ID:</strong></label>
-                <input type="number" class="form-control" id="new_id" name="new_id" 
-                       placeholder="Pun new ID here" min="1" required>
-                <small class="form-text text-muted">
-                    Enter a positive number less than 100.
-                </small>
-            </div>
-            <button type="submit" class="btn btn-info">Change ID</button>
-        </form>
-    </div>
-
     <div class="add-flag-form mb-4">
         <h3>Add a new pass</h3>
         <form method="POST" action="{{ url_for('add_flag') }}">

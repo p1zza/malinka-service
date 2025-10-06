@@ -44,39 +44,6 @@ class User(UserMixin, db.Model):
         salt, stored_hash = self.password_hash.split('$')
         pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
         return pwd_hash.hex() == stored_hash
-    
-    def update_user_id(self, new_id):
-        if not isinstance(new_id, int) or new_id <= 0:
-            raise ValueError("ID должен быть положительным целым числом")
-        
-        if self.id == new_id:
-            return True
-        
-        existing_user = User.query.get(new_id)
-        
-        if existing_user and existing_user != self:
-            temp_id = 99999 
-            while User.query.get(temp_id):
-                temp_id += 1
-
-            old_self_id = self.id
-            old_existing_id = existing_user.id
-            
-            existing_user.id = temp_id
-            db.session.flush()
-            
-            self.id = new_id
-            db.session.flush()
-            
-            existing_user.id = old_self_id
-            db.session.commit()
-            
-        else:
-            self.id = new_id
-            db.session.commit()
-        
-        return True
-
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -198,30 +165,6 @@ def change_password():
             logger.warning(f"Для пользователя {current_user.username} неверно введен пароль")
             flash('Неверный текущий пароль', 'danger')
     return render_template('change_password.html')
-
-@app.route('/change_id', methods = ['POST'])
-@login_required
-def change_id():
-    if request.method == 'POST':
-        try:
-            old_id = current_user.id 
-            new_id = int(request.form['new_id'])
-            
-            if new_id > 100:
-                flash("Новый id должен быть меньше 100", 'danger')
-                return redirect(url_for('dashboard'))
-            
-            current_user.update_user_id(new_id)
-            flash(f'ID успешно изменен с {old_id} на {new_id}', 'success')
-            
-        except ValueError as e:
-            flash(str(e), 'danger')
-            logger.error(f"ValueError on change_id: {e}")
-        except Exception as e:
-            flash(f"Ошибка при изменении ID: {str(e)}", 'danger')
-            logger.error(f"Exception on change_id: {e}")
-        
-        return redirect(url_for('logout'))
 
 @app.route('/logout')
 @login_required

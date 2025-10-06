@@ -7,9 +7,8 @@ services:
     ports:
       - "8080:8080"  
     volumes:
-      - ./app:/app/app 
-      - ./logs:/app/logs
-      - ./malinka_service/users.db:/app/malinka_service/users.db
+      - ./logs/app.log:/app/logs/app.log
+      - ./users.db:/app/users.db
 
     environment:
       - FLASK_APP=app 

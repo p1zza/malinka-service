@@ -25,12 +25,7 @@ RUN python3 -m pip install --upgrade pip && \
     -r requirements.txt \
     --no-binary :all:
 
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app
-
-USER app
-
-COPY --chown=app:app . .
+COPY . .
 
 EXPOSE 8080
 
