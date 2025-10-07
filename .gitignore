@@ -2,6 +2,8 @@
 .DS_Store
 code_gen.py
 *.db
-/logs
+/data/*
+/logs/*
 /app
-/data
+checker.py
+malinka_lib.py
